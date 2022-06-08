@@ -12,7 +12,6 @@ import dask_gateway
 import pystac
 
 import azure.storage.blob
-from stactools.deltares import stac
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +72,8 @@ def do_one(
     references_container_client_options: dict[str, Any],
     stac_container_client_options: dict[str, Any],
 ) -> None:
+    from stactools.deltares import stac
+
     refs_cc = azure.storage.blob.ContainerClient(**references_container_client_options)
     stac_cc = azure.storage.blob.ContainerClient(**stac_container_client_options)
 
@@ -85,7 +86,6 @@ def do_one(
         if not bc.exists():
             item, refs = do_one_sansio(item, refs_cc.primary_endpoint)
             bc.upload_blob(
-                refs_name,
                 json.dumps(refs).encode(),
                 overwrite=True,
                 content_settings=azure.storage.blob.ContentSettings(
@@ -97,7 +97,6 @@ def do_one(
 
     with stac_cc.get_blob_client(stac_name) as bc:
         bc.upload_blob(
-            stac_name,
             json.dumps(item.to_dict()).encode(),
             overwrite=True,
             content_settings=azure.storage.blob.ContentSettings(
@@ -127,8 +126,12 @@ def main() -> None:
 
     cluster = dask_gateway.GatewayCluster()
     client = cluster.get_client()
-    plugin = dask.distributed.PipInstall(["kerchunk"])
+    plugin = dask.distributed.PipInstall(
+        ["kerchunk", "git+https://github.com/TomAugspurger/deltares"]
+    )
     client.register_worker_plugin(plugin)
+    client.upload_file("/code/etl.py")
+
     cluster.adapt(minimum=1, maximum=40)
     print(client.dashboard_link)
     futures_to_urls = {
