@@ -1,6 +1,14 @@
-import logging
-from datetime import datetime, timezone
+from __future__ import annotations
 
+import logging
+import re
+from datetime import datetime, timezone
+from typing import Callable
+
+import requests
+import shapely.geometry
+import xarray as xr
+import xstac
 from pystac import (
     Asset,
     CatalogType,
@@ -13,7 +21,6 @@ from pystac import (
     SpatialExtent,
     TemporalExtent,
 )
-from pystac.extensions.projection import ProjectionExtension
 
 logger = logging.getLogger(__name__)
 
@@ -59,58 +66,84 @@ def create_collection() -> Collection:
     return collection
 
 
-def create_item(asset_href: str) -> Item:
-    """Create a STAC Item
+xpr = re.compile(
+    r"https://deltaresfloodssa.blob.core.windows.net/floods/v2021.06/[^/]+/[^/]+[^/]+/[^/]+/GFM_global_"  # noqa: E501
+    r"(?P<dem_name>NASADEM|MERITDEM|LIDAR)"
+    r"(?P<resolution>[^_]+)_"
+    r"(?P<sea_level_year>\d{4})slr_rp"
+    r"(?P<return_period>\d+)"
+)
 
-    This function should include logic to extract all relevant metadata from an
-    asset, metadata asset, and/or a constants.py file.
 
-    See `Item<https://pystac.readthedocs.io/en/latest/api.html#item>`_.
-
-    Args:
-        asset_href (str): The HREF pointing to an asset associated with the item
-
-    Returns:
-        Item: STAC Item object
+def create_item(
+    asset_href: str, transform_href: Callable[[str], str] | None = None
+) -> Item:
     """
+    Create a STAC item from a URL to a Kerchunk index file.
 
-    properties = {
-        "title": "A dummy STAC Item",
-        "description": "Used for demonstration purposes",
-    }
+    Parameters
+    ----------
+    asset_href : str
+        https://deltaresfloodssa.blob.core.windows.net/references/floods/GFM_global_MERITDEM90m_2050slr_rp0100_masked.json
+    """
+    if transform_href is None:
 
-    demo_geom = {
-        "type": "Polygon",
-        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
-    }
+        def transform_href(x: str) -> str:
+            return x
 
-    # Time must be in UTC
-    demo_time = datetime.now(tz=timezone.utc)
+    assert callable(transform_href)
+    fo = requests.get(transform_href(asset_href)).json()
 
-    item = Item(
-        id="my-item-id",
-        properties=properties,
-        geometry=demo_geom,
-        bbox=[-180, 90, 180, -90],
-        datetime=demo_time,
-        stac_extensions=[],
+    # TODO: might need to sign in general
+
+    ds = xr.open_dataset(
+        "reference://",
+        engine="zarr",
+        chunks={},
+        storage_options={"fo": fo},
+        consolidated=False,
     )
 
-    # It is a good idea to include proj attributes to optimize for libs like stac-vrt
-    proj_attrs = ProjectionExtension.ext(item, add_if_missing=True)
-    proj_attrs.epsg = 4326
-    proj_attrs.bbox = [-180, 90, 180, -90]
-    proj_attrs.shape = [1, 1]  # Raster shape
-    proj_attrs.transform = [-180, 360, 0, 90, 0, 180]  # Raster GeoTransform
+    geom = shapely.geometry.box(-180, -90, 180, 90)
+    item_id = asset_href.split("/")[-1].split(".")[0].replace("_", "-")
+    template = Item(
+        item_id,
+        shapely.geometry.mapping(geom),
+        geom.bounds,
+        ds.time.to_pandas().dt.to_pydatetime()[0],
+        {},
+    )
+    item: Item = xstac.xarray_to_stac(ds, template)
 
-    # Add an asset to the item (COG for example)
+    m = xpr.match(asset_href)
+    if m is None:
+        raise ValueError(f"Bad url {asset_href}")
+    d = m.groupdict()
+
+    item.extra_fields["deltares:dem_name"] = d["dem_name"]
+    item.extra_fields["deltares:resolution"] = d["resolutoin"]
+    item.extra_fields["deltares:sea_level_year"] = d["sea_level_year"]
+    item.extra_fields["deltares:return_period"] = d["return_period"]
+
     item.add_asset(
-        "image",
+        "index",
         Asset(
-            href=asset_href,
-            media_type=MediaType.COG,
+            asset_href,
+            title="Index file",
+            description="Kerchunk index file with references to the original data.",
+            media_type=MediaType.JSON,
+            roles=["index"],
+        ),
+    )
+    assert len(fo["templates"]) == 1
+    item.add_asset(
+        "data",
+        Asset(
+            list(fo["templates"].values())[0],
+            title="Floods data",
+            description="Original data",
+            media_type="application/netcdf",
             roles=["data"],
-            title="A dummy STAC Item COG",
         ),
     )
 

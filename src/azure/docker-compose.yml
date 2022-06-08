@@ -1,0 +1,17 @@
+version: "3.9"
+services:
+  make-references:
+    image: mcr.microsoft.com/planetary-computer/python:2022.05.11.0
+    # TODO: CLI - cache_list_files
+    command: python /code/etl.py
+    volumes:
+      - .:/code
+    env_file:
+      - .env
+  # process:
+  #   image: mcr.microsoft.com/planetary-computer/python:2022.05.11.0
+  #   command: bash
+  #   volumes:
+  #     - .:/code
+  #   env_file:
+  #     - .env
