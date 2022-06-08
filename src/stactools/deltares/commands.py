@@ -3,22 +3,22 @@ import logging
 import click
 from click import Command, Group
 
-from stactools.ephemeral import stac
+from stactools.deltares import stac
 
 logger = logging.getLogger(__name__)
 
 
-def create_ephemeralcmd_command(cli: Group) -> Command:
-    """Creates the stactools-ephemeral command line utility."""
+def create_deltares_command(cli: Group) -> Command:
+    """Creates the stactools-deltares command line utility."""
 
     @cli.group(
-        "ephemeralcmd",
-        short_help=("Commands for working with stactools-ephemeral"),
+        "deltares",
+        short_help=("Commands for working with stactools-deltares"),
     )
-    def ephemeralcmd() -> None:
+    def deltares() -> None:
         pass
 
-    @ephemeralcmd.command(
+    @deltares.command(
         "create-collection",
         short_help="Creates a STAC collection",
     )
@@ -37,7 +37,7 @@ def create_ephemeralcmd_command(cli: Group) -> Command:
 
         return None
 
-    @ephemeralcmd.command("create-item", short_help="Create a STAC item")
+    @deltares.command("create-item", short_help="Create a STAC item")
     @click.argument("source")
     @click.argument("destination")
     def create_item_command(source: str, destination: str) -> None:
@@ -53,4 +53,4 @@ def create_ephemeralcmd_command(cli: Group) -> Command:
 
         return None
 
-    return ephemeralcmd
+    return deltares
