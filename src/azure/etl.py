@@ -119,7 +119,7 @@ def main() -> None:
     stac_container_client_options = dict(
         account_url=account_url,
         container_name="floods-stac",
-        credential=os.environ["ETL_REFERENCES_CREDENTIAL"],
+        credential=os.environ["ETL_STAC_CREDENTIAL"],
     )
 
     blobs = cc.list_blobs(name_starts_with="v2021.06/global/")
