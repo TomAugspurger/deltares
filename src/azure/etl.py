@@ -122,18 +122,18 @@ def main() -> None:
     )
 
     blobs = cc.list_blobs(name_starts_with="v2021.06/global/")
-    urls = [f"{cc.primary_endpoint}/{b.name}" for b in blobs]
+    urls = [f"{cc.primary_endpoint}/{b.name}" for b in blobs if b.name.endswith(".nc")]
 
     cluster = dask_gateway.GatewayCluster()
     client = cluster.get_client()
+    print(client.dashboard_link)
     plugin = dask.distributed.PipInstall(
         ["kerchunk", "git+https://github.com/TomAugspurger/deltares"]
     )
     client.register_worker_plugin(plugin)
     client.upload_file("/code/etl.py")
 
-    cluster.adapt(minimum=1, maximum=40)
-    print(client.dashboard_link)
+    cluster.adapt(minimum=8, maximum=40)
     futures_to_urls = {
         client.submit(
             do_one,

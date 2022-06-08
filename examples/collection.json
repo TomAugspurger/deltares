@@ -1,0 +1,245 @@
+{
+  "type": "Collection",
+  "id": "deltares-floods",
+  "stac_version": "1.0.0",
+  "description": "Global estimates of coastal inundation under various sea level rise conditions and return periods at 90m, 1km, and 5km resolutions. Also includes estimated coastal inundation caused by named historical storm events going back several decades.",
+  "links": [
+    {
+      "rel": "describedby",
+      "href": "https://deltaresfloodssa.blob.core.windows.net/floods/v2021.06/11206409-003-ZWS-0003_v0.1-Planetary-Computer-Deltares-global-flood-docs.pdf",
+      "type": "application/pdf",
+      "title": "User Guide"
+    },
+    {
+      "rel": "license",
+      "href": "https://cdla.dev/permissive-1-0/",
+      "type": "text/html",
+      "title": "Community Data License Agreement \u2013 Permissive, Version 1.0"
+    }
+  ],
+  "stac_extensions": [
+    "https://stac-extensions.github.io/datacube/v2.0.0/schema.json",
+    "https://stac-extensions.github.io/item-assets/v1.0.0/schema.json"
+  ],
+  "cube:variables": {
+    "projection": {
+      "type": "data",
+      "description": "wgs84",
+      "dimensions": [],
+      "attrs": {
+        "long_name": "wgs84",
+        "EPSG_code": "EPSG:4326",
+        "proj4_params": "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs",
+        "grid_mapping_name": "latitude_longitude"
+      },
+      "shape": []
+    },
+    "inun": {
+      "type": "data",
+      "description": "Coastal flooding",
+      "dimensions": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "unit": "m",
+      "attrs": {
+        "units": "m",
+        "standard_name": "water_surface_height_above_reference_datum",
+        "long_name": "Coastal flooding"
+      },
+      "shape": [
+        1,
+        3600,
+        7200
+      ],
+      "chunks": [
+        1,
+        3600,
+        7200
+      ]
+    }
+  },
+  "cube:dimensions": {
+    "time": {
+      "extent": [
+        "2010-01-01T00:00:00Z",
+        "2010-01-01T00:00:00Z"
+      ],
+      "description": "time",
+      "type": "temporal"
+    },
+    "lon": {
+      "axis": "x",
+      "extent": [
+        -179.975,
+        179.97500000000005
+      ],
+      "description": "longitude",
+      "reference_system": {
+        "$schema": "https://proj.org/schemas/v0.4/projjson.schema.json",
+        "type": "GeographicCRS",
+        "name": "undefined",
+        "datum": {
+          "type": "GeodeticReferenceFrame",
+          "name": "World Geodetic System 1984",
+          "ellipsoid": {
+            "name": "WGS 84",
+            "semi_major_axis": 6378137,
+            "inverse_flattening": 298.257223563
+          },
+          "id": {
+            "authority": "EPSG",
+            "code": 6326
+          }
+        },
+        "coordinate_system": {
+          "subtype": "ellipsoidal",
+          "axis": [
+            {
+              "name": "Longitude",
+              "abbreviation": "lon",
+              "direction": "east",
+              "unit": "degree"
+            },
+            {
+              "name": "Latitude",
+              "abbreviation": "lat",
+              "direction": "north",
+              "unit": "degree"
+            }
+          ]
+        }
+      },
+      "type": "spatial"
+    },
+    "lat": {
+      "axis": "y",
+      "extent": [
+        -89.97500000000002,
+        89.975
+      ],
+      "description": "latitude",
+      "reference_system": {
+        "$schema": "https://proj.org/schemas/v0.4/projjson.schema.json",
+        "type": "GeographicCRS",
+        "name": "undefined",
+        "datum": {
+          "type": "GeodeticReferenceFrame",
+          "name": "World Geodetic System 1984",
+          "ellipsoid": {
+            "name": "WGS 84",
+            "semi_major_axis": 6378137,
+            "inverse_flattening": 298.257223563
+          },
+          "id": {
+            "authority": "EPSG",
+            "code": 6326
+          }
+        },
+        "coordinate_system": {
+          "subtype": "ellipsoidal",
+          "axis": [
+            {
+              "name": "Longitude",
+              "abbreviation": "lon",
+              "direction": "east",
+              "unit": "degree"
+            },
+            {
+              "name": "Latitude",
+              "abbreviation": "lat",
+              "direction": "north",
+              "unit": "degree"
+            }
+          ]
+        }
+      },
+      "type": "spatial"
+    }
+  },
+  "item_assets": {
+    "data": {
+      "type": "application/x-netcdf",
+      "title": "Flood Map",
+      "description": "Inundation maps of flood depth using a model that takes into account water level attenuation and is forced by sea level.",
+      "roles": [
+        "data"
+      ]
+    }
+  },
+  "title": "Deltares Global Flood Maps",
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          -180.0,
+          90.0,
+          180.0,
+          -90.0
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2022-06-08T17:00:42.289068Z",
+          null
+        ]
+      ]
+    }
+  },
+  "license": "CDLA-Permissive-1.0",
+  "providers": [
+    {
+      "name": "Deltares",
+      "roles": [
+        "producer"
+      ],
+      "url": "https://www.deltares.nl/en/"
+    },
+    {
+      "name": "Microsoft",
+      "roles": [
+        "host"
+      ],
+      "url": "https://planetarycomputer.microsoft.com/"
+    }
+  ],
+  "summaries": {
+    "deltares:dem-name": [
+      "NASADEM",
+      "MERITDEM",
+      "LIDAR"
+    ],
+    "deltares:resolution": [
+      "90m",
+      "1km",
+      "5km"
+    ],
+    "deltares:sea_level_year": [
+      2018,
+      2050
+    ],
+    "deltares:return_period": [
+      "0000",
+      "0002",
+      "0005",
+      "0010",
+      "0025",
+      "0050",
+      "0100",
+      "0250"
+    ]
+  },
+  "assets": {
+    "thumbnail": {
+      "href": "https://ai4edatasetspublicassets.azureedge.net/assets/pc_thumbnails/additional_datasets/deltares-flood.png",
+      "type": "image/png",
+      "title": "Thumbnail",
+      "roles": [
+        "thumbnail"
+      ]
+    }
+  }
+}
