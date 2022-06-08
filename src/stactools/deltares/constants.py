@@ -222,12 +222,12 @@ AVAILABILITY_CUBE_VARIABLES = {
         },
         "ETa": {
             "type": "data",
-            "description": "Average simulated actual evapotransporation upstream of reservoir",
+            "description": "Average simulated actual evapotransportation upstream of reservoir",
             "dimensions": ["time", "GrandID", "ksathorfrac"],
             "unit": "mm per day",
             "attrs": {
                 "units": "mm per day",
-                "description": "Average simulated actual evapotransporation upstream of reservoir",
+                "description": "Average simulated actual evapotransportation upstream of reservoir",
             },
         },
         "Snow": {
