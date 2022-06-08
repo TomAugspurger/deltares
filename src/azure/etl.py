@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 import urllib.request
 from typing import Any
 
@@ -25,18 +26,19 @@ xpr = re.compile(
 )
 
 
-def make_refs(item: pystac.Item) -> dict[str, Any]:
+def make_refs(item: pystac.Item, filename: str | None = None) -> dict[str, Any]:
     import kerchunk.hdf
 
     asset = item.assets["data"]
 
-    tmpfile, _ = urllib.request.urlretrieve(asset.href)
+    if filename is None:
+        filename, _ = urllib.request.urlretrieve(asset.href)
 
-    with open(tmpfile, "rb") as f:
+    with open(filename, "rb") as f:
         z = kerchunk.hdf.SingleHdf5ToZarr(f, asset.href)
         refs: dict[str, Any] = z.translate()
 
-    os.remove(tmpfile)
+    # os.remove(tmpfile)
     return refs
 
 
@@ -49,9 +51,11 @@ def get_stac_blob_name(item: pystac.Item) -> str:
 
 
 def do_one_sansio(
-    item: pystac.Item, endpoint: str
+    item: pystac.Item,
+    endpoint: str,
+    filename: str | None = None,
 ) -> tuple[pystac.Item, dict[str, Any]]:
-    refs = make_refs(item)
+    refs = make_refs(item, filename=filename)
     refs_name = get_references_blob_name(item)
     item = item.clone()
     item.add_asset(
@@ -77,21 +81,26 @@ def do_one(
     refs_cc = azure.storage.blob.ContainerClient(**references_container_client_options)
     stac_cc = azure.storage.blob.ContainerClient(**stac_container_client_options)
 
-    item = stac.create_item(asset_href)
+    with tempfile.NamedTemporaryFile() as tf:
+        filename = tf.name
 
-    refs_name = get_references_blob_name(item)
-    stac_name = get_stac_blob_name(item)
+        item = stac.create_item(asset_href, filename=filename)
 
-    with refs_cc.get_blob_client(refs_name) as bc:
-        if not bc.exists():
-            item, refs = do_one_sansio(item, refs_cc.primary_endpoint)
-            bc.upload_blob(
-                json.dumps(refs).encode(),
-                overwrite=True,
-                content_settings=azure.storage.blob.ContentSettings(
-                    content_type=str(pystac.MediaType.JSON)
-                ),
-            )
+        refs_name = get_references_blob_name(item)
+        stac_name = get_stac_blob_name(item)
+
+        with refs_cc.get_blob_client(refs_name) as bc:
+            if not bc.exists():
+                item, refs = do_one_sansio(
+                    item, refs_cc.primary_endpoint, filename=filename
+                )
+                bc.upload_blob(
+                    json.dumps(refs).encode(),
+                    overwrite=True,
+                    content_settings=azure.storage.blob.ContentSettings(
+                        content_type=str(pystac.MediaType.JSON)
+                    ),
+                )
 
         assert bc.exists()
 

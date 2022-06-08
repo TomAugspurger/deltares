@@ -295,7 +295,9 @@ class PathParts:
 
 
 def create_item(
-    asset_href: str, transform_href: Callable[[str], str] | None = None
+    asset_href: str,
+    transform_href: Callable[[str], str] | None = None,
+    filename: str | None = None,
 ) -> Item:
     """
     Create a STAC item from a URL to a Kerchunk index file.
@@ -310,7 +312,7 @@ def create_item(
         def transform_href(x: str) -> str:
             return x
 
-    filename, _ = urllib.request.urlretrieve(asset_href)
+    filename, _ = urllib.request.urlretrieve(asset_href, filename=filename)
 
     assert callable(transform_href)
     parts = PathParts.from_url(asset_href)
