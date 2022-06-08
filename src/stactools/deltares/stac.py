@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Callable
 
 import fsspec
@@ -174,12 +174,11 @@ def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
         ),
     ]
 
-    # Time must be in UTC
-    demo_time = datetime.now(tz=timezone.utc)
+    date_intervals: list[datetime | None] = [None, None]
 
     extent = Extent(
         SpatialExtent([[-180.0, 90.0, 180.0, -90.0]]),
-        TemporalExtent([[demo_time, None]]),
+        TemporalExtent([date_intervals]),
     )
     extra_fields = extra_fields or {}
     extra_fields["cube:variables"] = CUBE_VARIABLES
@@ -217,7 +216,7 @@ def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
     )
 
     SUMMARIES = {
-        "deltares:dem-name": ["NASADEM", "MERITDEM", "LIDAR"],
+        "deltares:dem_name": ["NASADEM", "MERITDEM", "LIDAR"],
         "deltares:resolution": ["90m", "1km", "5km"],
         "deltares:sea_level_year": [2018, 2050],
         "deltares:return_period": [

@@ -183,7 +183,7 @@
     "temporal": {
       "interval": [
         [
-          "2022-06-08T17:00:42.289068Z",
+          null,
           null
         ]
       ]
@@ -207,7 +207,7 @@
     }
   ],
   "summaries": {
-    "deltares:dem-name": [
+    "deltares:dem_name": [
       "NASADEM",
       "MERITDEM",
       "LIDAR"
