@@ -73,13 +73,13 @@ def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
         TemporalExtent([date_intervals]),
     )
     extra_fields = extra_fields or {}
-    extra_fields["cube:variables"] = constants.FLOOD_CUBE_VARIABLES
-    extra_fields["cube:dimensions"] = constants.FLOOD_CUBE_DIMENSIONS
+    extra_fields["cube:variables"] = constants.AVAILABILITY_CUBE_VARIABLES
+    extra_fields["cube:dimensions"] = constants.AVAILABILITY_CUBE_DIMENSIONS
 
     collection = Collection(
-        id="deltares-floods",
-        title="Deltares Global Flood Maps",
-        description="Global estimates of coastal inundation under various sea level rise conditions and return periods at 90m, 1km, and 5km resolutions. Also includes estimated coastal inundation caused by named historical storm events going back several decades.",  # noqa: E501
+        id="deltares-water-availability",
+        title="Deltares Global Water Availability",
+        description="Daily reservoir variations for 3,236 locations across the globe for the period 1970-2020.",  # noqa: E501
         license="CDLA-Permissive-1.0",
         providers=providers,
         extent=extent,
@@ -208,6 +208,19 @@ def create_item(
     )
     item.bbox = bbox
     item.geometry = geometry
+    additional_dimensions = {
+        "GrandID": {
+            "type": "identifier",
+            "extent": [int(ds.GrandID.min()), int(ds.GrandID.max())],
+            "description": "GrandID number of the reservoir of interest",
+        },
+        "ksathorfrac": {
+            "type": "level",
+            "values": ds.ksathorfrac.data.tolist(),
+            "description": "Five different value lateral anisotropy values used",
+        },
+    }
+    item.properties["cube:dimensions"].update(additional_dimensions)
 
     for k, v in asdict(parts).items():
         item.properties[f"deltares:{k}"] = v
