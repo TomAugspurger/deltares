@@ -27,9 +27,18 @@ from pystac import (
 )
 from pystac.extensions.item_assets import ItemAssetsExtension
 
-from . import constants
+from stactools.deltares import constants
 
 logger = logging.getLogger(__name__)
+
+
+NUMBER_OF_BASINS = {
+    "ERA5": 3236,
+    "CHIRPS": 2951,
+    "EOBS": 682,
+    "NLDAS": 1090,
+    "BOM": 116,
+}
 
 
 def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
@@ -84,7 +93,7 @@ def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
     links = [
         Link(
             RelType.LICENSE,
-            "https://ai4edatasetspublicassets.blob.core.windows.net/assets/aod_docs/11206409-003-ZWS-0003_v0.1-Planetary-Computer-Deltares-global-flood-docs.pdf",  # noqa: E501
+            "https://ai4edatasetspublicassets.blob.core.windows.net/assets/aod_docs/pc-deltares-water-availability-documentation.pdf",  # noqa: E501
             media_type="application/pdf",
             title="User Guide",
         ),
@@ -93,19 +102,7 @@ def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
     collection.add_links(links)
 
     SUMMARIES = {
-        "deltares:dem_name": ["NASADEM", "MERITDEM", "LIDAR"],
-        "deltares:resolution": ["90m", "1km", "5km"],
-        "deltares:sea_level_year": [2018, 2050],
-        "deltares:return_period": [
-            "0000",
-            "0002",
-            "0005",
-            "0010",
-            "0025",
-            "0050",
-            "0100",
-            "0250",
-        ],
+        "deltares:reservoir": ["ERA5", "CHIRPS", "EOBS", "NLDAS", "BOM"],
     }
 
     collection.summaries = Summaries(SUMMARIES, maxcount=50)
@@ -122,7 +119,7 @@ def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
     collection.add_asset(
         "thumbnail",
         Asset(
-            "https://ai4edatasetspublicassets.azureedge.net/assets/pc_thumbnails/additional_datasets/deltares-flood.png",  # noqa: E501
+            "https://ai4edatasetspublicassets.azureedge.net/assets/pc_thumbnails/additional_datasets/deltares-reservoir.jpg",  # noqa: E501
             title="Thumbnail",
             media_type=MediaType.PNG,
             roles=["thumbnail"],
@@ -137,17 +134,11 @@ def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
 
 @dataclass
 class PathParts:
-    dem_name: str
-    resolution: str
-    sea_level_year: int
-    return_period: str
+    reservoir: str
 
     XPR = re.compile(
-        r"https://deltaresfloodssa.blob.core.windows.net/floods/v2021.06/[^/]+/[^/]+[^/]+/[^/]+/GFM_global_"  # noqa: E501
-        r"(?P<dem_name>NASADEM|MERITDEM|LIDAR)"
-        r"(?P<resolution>[^_]+)_"
-        r"(?P<sea_level_year>\d{4})slr_rp"
-        r"(?P<return_period>\d+)"
+        r"https://deltaresreservoirssa.blob.core.windows.net/reservoirs/v2021.12/"
+        r"reservoirs_(?P<reservoir>\w+).nc"
     )
 
     @classmethod
@@ -155,20 +146,12 @@ class PathParts:
         match = cls.XPR.match(url)
         if not match:
             raise ValueError(f"URL {url} does not match the regular expression.")
-        d: dict[str, Any] = match.groupdict()
-        d["sea_level_year"] = int(d["sea_level_year"])
+        d = match.groupdict()
         return cls(**d)
 
     @property
     def item_id(self) -> str:
-        return "-".join(
-            [
-                self.dem_name,
-                self.resolution,
-                str(self.sea_level_year),
-                self.return_period,
-            ]
-        )
+        return self.reservoir
 
 
 def create_item(
@@ -189,21 +172,42 @@ def create_item(
         def transform_href(x: str) -> str:
             return x
 
-    filename, _ = urllib.request.urlretrieve(asset_href, filename=filename)
-
     assert callable(transform_href)
+
+    filename, _ = urllib.request.urlretrieve(
+        transform_href(asset_href), filename=filename
+    )
+
     parts = PathParts.from_url(asset_href)
-    geom = shapely.geometry.box(-180, -90, 180, 90)
+    # geom = shapely.geometry.box(-180, -90, 180, 90)
     ds = xr.open_dataset(filename, engine="h5netcdf", chunks={})
 
     template = Item(
         parts.item_id,
-        shapely.geometry.mapping(geom),
-        geom.bounds,
+        None,
+        None,
         ds.time.to_pandas().dt.to_pydatetime()[0],
         {},
     )
-    item: Item = xstac.xarray_to_stac(ds, template)
+    longitude = ds.longitude.compute()
+    latitude = ds.latitude.compute()
+
+    bbox = [
+        float(x)
+        for x in [
+            longitude.min().item(),
+            latitude.min().item(),
+            longitude.max().item(),
+            latitude.max().item(),
+        ]
+    ]
+    geometry = shapely.geometry.mapping(shapely.geometry.box(*bbox))
+
+    item: Item = xstac.xarray_to_stac(
+        ds, template, temporal_dimension="time", x_dimension=False, y_dimension=False
+    )
+    item.bbox = bbox
+    item.geometry = geometry
 
     for k, v in asdict(parts).items():
         item.properties[f"deltares:{k}"] = v
