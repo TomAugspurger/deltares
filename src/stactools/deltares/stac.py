@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import logging
 import re
+import urllib.request
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Callable
 
-import fsspec
 import shapely.geometry
 import xarray as xr
 import xstac
@@ -305,26 +305,26 @@ def create_item(
     asset_href : str
         URL to the NetCDF file.
     """
-    # TODO: Might want to download the NetCDF file locally.
     if transform_href is None:
 
         def transform_href(x: str) -> str:
             return x
 
+    filename, _ = urllib.request.urlretrieve(asset_href)
+
     assert callable(transform_href)
     parts = PathParts.from_url(asset_href)
     geom = shapely.geometry.box(-180, -90, 180, 90)
-    with fsspec.open(asset_href).open() as f:
-        ds = xr.open_dataset(f, engine="h5netcdf", chunks={})
+    ds = xr.open_dataset(filename, engine="h5netcdf", chunks={})
 
-        template = Item(
-            parts.item_id,
-            shapely.geometry.mapping(geom),
-            geom.bounds,
-            ds.time.to_pandas().dt.to_pydatetime()[0],
-            {},
-        )
-        item: Item = xstac.xarray_to_stac(ds, template)
+    template = Item(
+        parts.item_id,
+        shapely.geometry.mapping(geom),
+        geom.bounds,
+        ds.time.to_pandas().dt.to_pydatetime()[0],
+        {},
+    )
+    item: Item = xstac.xarray_to_stac(ds, template)
 
     for k, v in asdict(parts).items():
         item.properties[f"deltares:{k}"] = v
