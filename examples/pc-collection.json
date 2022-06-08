@@ -5,8 +5,8 @@
   "description": "Global estimates of coastal inundation under various sea level rise conditions and return periods at 90m, 1km, and 5km resolutions. Also includes estimated coastal inundation caused by named historical storm events going back several decades.",
   "links": [
     {
-      "rel": "describedby",
-      "href": "https://deltaresfloodssa.blob.core.windows.net/floods/v2021.06/11206409-003-ZWS-0003_v0.1-Planetary-Computer-Deltares-global-flood-docs.pdf",
+      "rel": "license",
+      "href": "https://ai4edatasetspublicassets.blob.core.windows.net/assets/aod_docs/11206409-003-ZWS-0003_v0.1-Planetary-Computer-Deltares-global-flood-docs.pdf",
       "type": "application/pdf",
       "title": "User Guide"
     },
@@ -50,17 +50,7 @@
         "units": "m",
         "standard_name": "water_surface_height_above_reference_datum",
         "long_name": "Coastal flooding"
-      },
-      "shape": [
-        1,
-        3600,
-        7200
-      ],
-      "chunks": [
-        1,
-        3600,
-        7200
-      ]
+      }
     }
   },
   "cube:dimensions": {

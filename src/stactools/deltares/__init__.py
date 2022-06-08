@@ -12,6 +12,7 @@ def register_plugin(registry: Registry) -> None:
     from stactools.deltares import commands
 
     registry.register_subcommand(commands.create_deltares_command)
+    registry.register_subcommand(commands.create_availability_command)
 
 
 __version__ = "0.1.0"
