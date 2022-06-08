@@ -1,21 +1,18 @@
 import etl
 
-URL = "https://deltaresfloodssa.blob.core.windows.net/floods/v2021.06/global/NASADEM/90m/GFM_global_NASADEM90m_2018slr_rp0100_masked.nc"  # noqa: E501
+from stactools.deltares import stac
+
+URL = "https://deltaresfloodssa.blob.core.windows.net/floods/v2021.06/global/LIDAR/5km/GFM_global_LIDAR5km_2018slr_rp0000.nc"  # noqa: E501
 
 
-def test_match() -> None:
-    result = etl.DeltaresRecord.from_url(URL)
-    assert result.item_id == "NASADEM-90m-2018-0100"
+def test_etl_single() -> None:
+    item = stac.create_item(URL)
+    endpoint = "https://deltaresfloodssa.blob.core.windows.net/references" ""
+    item2, refs = etl.do_one_sansio(item, endpoint=endpoint)
 
-
-def test_netcdf_name() -> None:
-    result = etl.DeltaresRecord.from_url(URL)
     assert (
-        result.netcdf_name
-        == "v2021.06/global/NASADEM/90m/GFM_global_NASADEM90m_2018slr_rp0100_masked.nc"
+        item2.assets["references"].href
+        == "https://deltaresfloodssa.blob.core.windows.net/references/floods/LIDAR-5km-2018-0000.json"  # noqa: E501
     )
-
-
-def test_references_name() -> None:
-    result = etl.DeltaresRecord.from_url(URL)
-    assert result.references_name == "floods/NASADEM-90m-2018-0100.json"
+    assert item2.assets["references"].roles == ["index"]
+    assert isinstance(refs, dict)

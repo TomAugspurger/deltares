@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import dataclasses
 import json
 import logging
 import os
@@ -10,8 +9,10 @@ from typing import Any
 
 import dask.distributed
 import dask_gateway
+import pystac
 
 import azure.storage.blob
+from stactools.deltares import stac
 
 logger = logging.getLogger(__name__)
 
@@ -25,119 +26,117 @@ xpr = re.compile(
 )
 
 
-@dataclasses.dataclass
-class DeltaresRecord:
-    item_id: str
-    are_references_created: bool = False
-    dataset_id: str = "deltares-floods"
+def make_refs(item: pystac.Item) -> dict[str, Any]:
+    import kerchunk.hdf
 
-    def __post_init__(self) -> None:
-        dem_name, resolution, sea_level_year, return_period = self.item_id.split("-")
-        self.dem_name = dem_name
-        self.resolution = resolution
-        self.sea_level_year = sea_level_year
-        self.return_period = return_period
+    asset = item.assets["data"]
 
-    @classmethod
-    def from_url(cls, url: str) -> "DeltaresRecord":
-        match = xpr.match(url)
-        if not match:
-            raise ValueError(f"Bad url {url}")
-        d = match.groupdict()
-        return cls(
-            item_id="-".join(
-                [
-                    d["dem_name"],
-                    d["resolution"],
-                    d["sea_level_year"],
-                    d["return_period"],
-                ]
-            )
-        )
-
-    @property
-    def entity(self) -> dict[str, Any]:
-        return {
-            "PartitionKey": self.dataset_id,
-            "RowKey": self.item_id,
-            "are_references_created": self.are_references_created,
-        }
-
-    @property
-    def netcdf_name(self) -> str:
-        return (
-            f"v2021.06/global/{self.dem_name}/{self.resolution}/GFM_global_"
-            f"{self.dem_name}{self.resolution}_{self.sea_level_year}slr_rp"
-            f"{self.return_period}_masked.nc"
-        )
-
-    @property
-    def references_name(self) -> str:
-        return f"floods/{self.item_id}.json"
-
-
-plugin = dask.distributed.PipInstall(["kerchunk"])
-
-
-def make_refs(url: str) -> dict[str, Any]:
-    import kerchunk
-
-    tmpfile, _ = urllib.request.urlretrieve(url)
+    tmpfile, _ = urllib.request.urlretrieve(asset.href)
 
     with open(tmpfile, "rb") as f:
-        z = kerchunk.hdf.SingleHdf5ToZarr(f, url)
+        z = kerchunk.hdf.SingleHdf5ToZarr(f, asset.href)
         refs: dict[str, Any] = z.translate()
 
     os.remove(tmpfile)
     return refs
 
 
-def put_refs(
-    url: str, refs: dict[str, Any], container_client_options: dict[str, Any]
-) -> str:
-    record: DeltaresRecord = DeltaresRecord.from_url(url)
-    refs_cc = azure.storage.blob.ContainerClient(**container_client_options)
-    name = record.references_name
-    refs_cc.upload_blob(
-        name,
-        json.dumps(refs).encode(),
-        content_settings=azure.storage.blob.ContentSettings(
-            content_type="application/json"
+def get_references_blob_name(item: pystac.Item) -> str:
+    return f"floods/{item.id}.json"
+
+
+def get_stac_blob_name(item: pystac.Item) -> str:
+    return f"floods/{item.id}.json"
+
+
+def do_one_sansio(
+    item: pystac.Item, endpoint: str
+) -> tuple[pystac.Item, dict[str, Any]]:
+    refs = make_refs(item)
+    refs_name = get_references_blob_name(item)
+    item = item.clone()
+    item.add_asset(
+        "references",
+        pystac.Asset(
+            f"{endpoint}/{refs_name}",
+            title="Index file",
+            description="Kerchunk index file.",
+            media_type=pystac.MediaType.JSON,
+            roles=["index"],
         ),
-        overwrite=True,
     )
-    return name
+    return item, refs
 
 
-def do_one(url: str, container_client_options: dict[str, Any]) -> None:
-    record = DeltaresRecord.from_url(url)
-    refs_cc = azure.storage.blob.ContainerClient(**container_client_options)
-    name = record.references_name
-    with refs_cc.get_blob_client(name) as bc:
+def do_one(
+    asset_href: str,
+    references_container_client_options: dict[str, Any],
+    stac_container_client_options: dict[str, Any],
+) -> None:
+    refs_cc = azure.storage.blob.ContainerClient(**references_container_client_options)
+    stac_cc = azure.storage.blob.ContainerClient(**stac_container_client_options)
+
+    item = stac.create_item(asset_href)
+
+    refs_name = get_references_blob_name(item)
+    stac_name = get_stac_blob_name(item)
+
+    with refs_cc.get_blob_client(refs_name) as bc:
         if not bc.exists():
-            refs = make_refs(url)
-            put_refs(url, refs, container_client_options=container_client_options)
+            item, refs = do_one_sansio(item, refs_cc.primary_endpoint)
+            bc.upload_blob(
+                refs_name,
+                json.dumps(refs).encode(),
+                overwrite=True,
+                content_settings=azure.storage.blob.ContentSettings(
+                    content_type=str(pystac.MediaType.JSON)
+                ),
+            )
+
+        assert bc.exists()
+
+    with stac_cc.get_blob_client(stac_name) as bc:
+        bc.upload_blob(
+            stac_name,
+            json.dumps(item.to_dict()).encode(),
+            overwrite=True,
+            content_settings=azure.storage.blob.ContentSettings(
+                content_type=str(pystac.MediaType.GEOJSON)
+            ),
+        )
 
 
 def main() -> None:
     cc = azure.storage.blob.ContainerClient(
         "https://deltaresfloodssa.blob.core.windows.net", "floods"
     )
-    blobs = cc.list_blobs(name_starts_with="v2021.06/global/")
-    urls = [f"{cc.primary_endpoint}/{b.name}" for b in blobs]
-    container_client_options = dict(
-        account_name="deltaresfloodssa",
+    account_url = "https://deltaresfloodssa.blob.core.windows.net"
+    references_container_client_options = dict(
+        account_url=account_url,
+        container_name="references",
+        credential=os.environ["ETL_REFERENCES_CREDENTIAL"],
+    )
+    stac_container_client_options = dict(
+        account_url=account_url,
+        container_name="floods-stac",
         credential=os.environ["ETL_REFERENCES_CREDENTIAL"],
     )
 
+    blobs = cc.list_blobs(name_starts_with="v2021.06/global/")
+    urls = [f"{cc.primary_endpoint}/{b.name}" for b in blobs]
+
     cluster = dask_gateway.GatewayCluster()
     client = cluster.get_client()
+    plugin = dask.distributed.PipInstall(["kerchunk"])
     client.register_worker_plugin(plugin)
     cluster.adapt(minimum=1, maximum=40)
     print(client.dashboard_link)
     futures_to_urls = {
         client.submit(
-            do_one, url, container_client_options=container_client_options
+            do_one,
+            url,
+            references_container_client_options=references_container_client_options,
+            stac_container_client_options=stac_container_client_options,
         ): url
         for url in urls
     }
@@ -150,7 +149,7 @@ def main() -> None:
         try:
             future.result()
         except Exception:
-            print("error in ", url)
+            logger.exception("Error in %s", url)
             failure.append(url)
         else:
             success.append(url)
