@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Callable
+from typing import Any, Callable
 
-import requests
+import fsspec
 import shapely.geometry
 import xarray as xr
 import xstac
@@ -15,7 +16,6 @@ from pystac import (
     Collection,
     Extent,
     Item,
-    MediaType,
     Provider,
     ProviderRole,
     SpatialExtent,
@@ -66,13 +66,40 @@ def create_collection() -> Collection:
     return collection
 
 
-xpr = re.compile(
-    r"https://deltaresfloodssa.blob.core.windows.net/floods/v2021.06/[^/]+/[^/]+[^/]+/[^/]+/GFM_global_"  # noqa: E501
-    r"(?P<dem_name>NASADEM|MERITDEM|LIDAR)"
-    r"(?P<resolution>[^_]+)_"
-    r"(?P<sea_level_year>\d{4})slr_rp"
-    r"(?P<return_period>\d+)"
-)
+@dataclass
+class PathParts:
+    dem_name: str
+    resolution: str
+    sea_level_year: int
+    return_period: str
+
+    XPR = re.compile(
+        r"https://deltaresfloodssa.blob.core.windows.net/floods/v2021.06/[^/]+/[^/]+[^/]+/[^/]+/GFM_global_"  # noqa: E501
+        r"(?P<dem_name>NASADEM|MERITDEM|LIDAR)"
+        r"(?P<resolution>[^_]+)_"
+        r"(?P<sea_level_year>\d{4})slr_rp"
+        r"(?P<return_period>\d+)"
+    )
+
+    @classmethod
+    def from_url(cls, url: str) -> "PathParts":
+        match = cls.XPR.match(url)
+        if not match:
+            raise ValueError(f"URL {url} does not match the regular expresion.")
+        d: dict[str, Any] = match.groupdict()
+        d["sea_level_year"] = int(d["sea_level_year"])
+        return cls(**d)
+
+    @property
+    def item_id(self) -> str:
+        return "-".join(
+            [
+                self.dem_name,
+                self.resolution,
+                str(self.sea_level_year),
+                self.return_period,
+            ]
+        )
 
 
 def create_item(
@@ -84,7 +111,7 @@ def create_item(
     Parameters
     ----------
     asset_href : str
-        https://deltaresfloodssa.blob.core.windows.net/references/floods/GFM_global_MERITDEM90m_2050slr_rp0100_masked.json
+        URL to the NetCDF file.
     """
     if transform_href is None:
 
@@ -92,59 +119,31 @@ def create_item(
             return x
 
     assert callable(transform_href)
-    fo = requests.get(transform_href(asset_href)).json()
-
-    # TODO: might need to sign in general
-
-    ds = xr.open_dataset(
-        "reference://",
-        engine="zarr",
-        chunks={},
-        storage_options={"fo": fo},
-        consolidated=False,
-    )
-
+    parts = PathParts.from_url(asset_href)
     geom = shapely.geometry.box(-180, -90, 180, 90)
-    item_id = asset_href.split("/")[-1].split(".")[0].replace("_", "-")
-    template = Item(
-        item_id,
-        shapely.geometry.mapping(geom),
-        geom.bounds,
-        ds.time.to_pandas().dt.to_pydatetime()[0],
-        {},
-    )
-    item: Item = xstac.xarray_to_stac(ds, template)
+    with fsspec.open(asset_href).open() as f:
+        ds = xr.open_dataset(f, engine="h5netcdf", chunks={})
 
-    m = xpr.match(asset_href)
-    if m is None:
-        raise ValueError(f"Bad url {asset_href}")
-    d = m.groupdict()
+        template = Item(
+            parts.item_id,
+            shapely.geometry.mapping(geom),
+            geom.bounds,
+            ds.time.to_pandas().dt.to_pydatetime()[0],
+            {},
+        )
+        item: Item = xstac.xarray_to_stac(ds, template)
 
-    item.extra_fields["deltares:dem_name"] = d["dem_name"]
-    item.extra_fields["deltares:resolution"] = d["resolutoin"]
-    item.extra_fields["deltares:sea_level_year"] = d["sea_level_year"]
-    item.extra_fields["deltares:return_period"] = d["return_period"]
+    for k, v in asdict(parts).items():
+        item.properties[f"deltares:{k}"] = v
 
     item.add_asset(
-        "index",
+        "data",
         Asset(
             asset_href,
             title="Index file",
             description="Kerchunk index file with references to the original data.",
-            media_type=MediaType.JSON,
+            media_type="application/x-netcdf",
             roles=["index"],
         ),
     )
-    assert len(fo["templates"]) == 1
-    item.add_asset(
-        "data",
-        Asset(
-            list(fo["templates"].values())[0],
-            title="Floods data",
-            description="Original data",
-            media_type="application/netcdf",
-            roles=["data"],
-        ),
-    )
-
     return item
