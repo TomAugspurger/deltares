@@ -7,5 +7,3 @@ examples/pc-collection.json:
 		--extra-field "msft:storage_account=deltaresfloodssa" \
 		--extra-field "msft:container=floods" \
 		--extra-field "msft:short_description=Global estimates of coastal inundation under various sea level rise conditions and return periods."
-
-
