@@ -3,27 +3,18 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 import tempfile
 import urllib.request
-from typing import Any
+from typing import Any, Callable
 
 import dask.distributed
 import dask_gateway
+import planetary_computer.sas
 import pystac
 
 import azure.storage.blob
 
 logger = logging.getLogger(__name__)
-
-
-xpr = re.compile(
-    r"https://deltaresfloodssa.blob.core.windows.net/floods/v2021.06/[^/]+/[^/]+[^/]+/[^/]+/GFM_global_"  # noqa: E501
-    r"(?P<dem_name>NASADEM|MERITDEM|LIDAR)"
-    r"(?P<resolution>[^_]+)_"
-    r"(?P<sea_level_year>\d{4})slr_rp"
-    r"(?P<return_period>\d+)"
-)
 
 
 def make_refs(item: pystac.Item, filename: str | None = None) -> dict[str, Any]:
@@ -43,11 +34,10 @@ def make_refs(item: pystac.Item, filename: str | None = None) -> dict[str, Any]:
 
 
 def get_references_blob_name(item: pystac.Item) -> str:
-    return f"floods/{item.id}.json"
-
-
-def get_stac_blob_name(item: pystac.Item) -> str:
-    return f"floods/{item.id}.json"
+    if "deltaresfloodssa" in item.assets["data"].href:
+        return f"floods/{item.id}.json"
+    else:
+        return f"reservoirs/{item.id}.json"
 
 
 def do_one_sansio(
@@ -75,8 +65,14 @@ def do_one(
     asset_href: str,
     references_container_client_options: dict[str, Any],
     stac_container_client_options: dict[str, Any],
+    kind: str,
+    # create_item: Callable[..., pystac.Item],
+    transform_href: Callable[[str], str] | None = None,
 ) -> None:
-    from stactools.deltares import stac
+    if kind == "floods":
+        from stactools.deltares import stac
+    else:
+        from stactools.deltares.availability import stac  # type: ignore
 
     refs_cc = azure.storage.blob.ContainerClient(**references_container_client_options)
     stac_cc = azure.storage.blob.ContainerClient(**stac_container_client_options)
@@ -84,10 +80,11 @@ def do_one(
     with tempfile.NamedTemporaryFile() as tf:
         filename = tf.name
 
-        item = stac.create_item(asset_href, filename=filename)
+        item = stac.create_item(
+            asset_href, filename=filename, transform_href=transform_href
+        )
 
-        refs_name = get_references_blob_name(item)
-        stac_name = get_stac_blob_name(item)
+        refs_name = stac_name = get_references_blob_name(item)
 
         with refs_cc.get_blob_client(refs_name) as bc:
             if not bc.exists():
@@ -114,24 +111,54 @@ def do_one(
         )
 
 
-def main() -> None:
-    cc = azure.storage.blob.ContainerClient(
-        "https://deltaresfloodssa.blob.core.windows.net", "floods"
-    )
-    account_url = "https://deltaresfloodssa.blob.core.windows.net"
-    references_container_client_options = dict(
-        account_url=account_url,
-        container_name="references",
-        credential=os.environ["ETL_REFERENCES_CREDENTIAL"],
-    )
-    stac_container_client_options = dict(
-        account_url=account_url,
-        container_name="floods-stac",
-        credential=os.environ["ETL_STAC_CREDENTIAL"],
-    )
+def main(kind: str) -> None:
+    assert kind in {"floods", "availability"}
 
-    blobs = cc.list_blobs(name_starts_with="v2021.06/global/")
-    urls = [f"{cc.primary_endpoint}/{b.name}" for b in blobs if b.name.endswith(".nc")]
+    if kind == "floods":
+        cc = azure.storage.blob.ContainerClient(
+            "https://deltaresfloodssa.blob.core.windows.net", "floods"
+        )
+        name_starts_with = "v2021.06/global/"
+        account_url = "https://deltaresfloodssa.blob.core.windows.net"
+        references_container_client_options = dict(
+            account_url=account_url,
+            container_name="references",
+            credential=os.environ["ETL_FLOODS_REFERENCES_CREDENTIAL"],
+        )
+        stac_container_client_options = dict(
+            account_url=account_url,
+            container_name="floods-stac",
+            credential=os.environ["ETL_FLOODS_STAC_CREDENTIAL"],
+        )
+
+    else:
+        account_url = "https://deltaresreservoirssa.blob.core.windows.net"
+        cc = azure.storage.blob.ContainerClient(
+            account_url,
+            "reservoirs",
+            credential=planetary_computer.sas.get_token(
+                "deltaresreservoirssa", "reservoirs"
+            ).token,
+        )
+        name_starts_with = "v2021.12/"
+        references_container_client_options = dict(
+            account_url=account_url,
+            container_name="references",
+            credential=os.environ["ETL_RESERVOIRS_REFERENCES_CREDENTIAL"],
+        )
+        stac_container_client_options = dict(
+            account_url=account_url,
+            container_name="reservoirs-stac",
+            credential=os.environ["ETL_RESERVOIRS_STAC_CREDENTIAL"],
+        )
+
+    blobs = list(cc.list_blobs(name_starts_with=name_starts_with))
+    urls = [
+        f"{cc.primary_endpoint.split('?')[0]}/{b.name}"
+        for b in blobs
+        if b.name.endswith(".nc")
+    ]
+    print(f"{len(urls)=}")
 
     cluster = dask_gateway.GatewayCluster()
     client = cluster.get_client()
@@ -142,16 +169,20 @@ def main() -> None:
     client.register_worker_plugin(plugin)
     client.upload_file("/code/etl.py")
 
-    cluster.adapt(minimum=8, maximum=40)
+    cluster.adapt(minimum=5, maximum=40)
+
     futures_to_urls = {
         client.submit(
             do_one,
             url,
             references_container_client_options=references_container_client_options,
             stac_container_client_options=stac_container_client_options,
+            kind=kind,
+            transform_href=planetary_computer.sign,
         ): url
         for url in urls
     }
+    dask.distributed.fire_and_forget(list(futures_to_urls))
 
     success = []
     failure = []
@@ -169,4 +200,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    kind = sys.argv[1]
+    main(kind)

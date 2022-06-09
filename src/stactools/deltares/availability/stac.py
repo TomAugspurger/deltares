@@ -180,7 +180,7 @@ def create_item(
 
     parts = PathParts.from_url(asset_href)
     # geom = shapely.geometry.box(-180, -90, 180, 90)
-    ds = xr.open_dataset(filename, engine="h5netcdf", chunks={})
+    ds = xr.open_dataset(filename, engine="h5netcdf")
 
     template = Item(
         parts.item_id,
@@ -189,8 +189,8 @@ def create_item(
         ds.time.to_pandas().dt.to_pydatetime()[0],
         {},
     )
-    longitude = ds.longitude.compute()
-    latitude = ds.latitude.compute()
+    longitude = ds.longitude
+    latitude = ds.latitude
 
     bbox = [
         float(x)
