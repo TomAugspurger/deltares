@@ -194,7 +194,7 @@ def create_item(
     assert callable(transform_href)
     parts = PathParts.from_url(asset_href)
     geom = shapely.geometry.box(-180, -90, 180, 90)
-    ds = xr.open_dataset(filename, engine="h5netcdf", chunks={})
+    ds = xr.open_dataset(filename, engine="h5netcdf")
 
     template = Item(
         parts.item_id,
