@@ -171,30 +171,12 @@ class PathParts:
         )
 
 
-def create_item(
+def create_item_from_dataset(
+    ds: xr.Dataset,
     asset_href: str,
-    transform_href: Callable[[str], str] | None = None,
-    filename: str | None = None,
 ) -> Item:
-    """
-    Create a STAC item from a URL to a Kerchunk index file.
-
-    Parameters
-    ----------
-    asset_href : str
-        URL to the NetCDF file.
-    """
-    if transform_href is None:
-
-        def transform_href(x: str) -> str:
-            return x
-
-    filename, _ = urllib.request.urlretrieve(asset_href, filename=filename)
-
-    assert callable(transform_href)
     parts = PathParts.from_url(asset_href)
     geom = shapely.geometry.box(-180, -90, 180, 90)
-    ds = xr.open_dataset(filename, engine="h5netcdf")
 
     template = Item(
         parts.item_id,
@@ -219,3 +201,21 @@ def create_item(
         ),
     )
     return item
+
+
+def create_item(
+    asset_href: str,
+    transform_href: Callable[[str], str] | None = None,
+    filename: str | None = None,
+) -> Item:
+    """
+    Create a STAC item from a URL to a Kerchunk index file.
+
+    Parameters
+    ----------
+    asset_href : str
+        URL to the NetCDF file.
+    """
+    filename, _ = urllib.request.urlretrieve(asset_href, filename=filename)
+    ds = xr.open_dataset(filename, engine="h5netcdf")
+    return create_item_from_dataset(ds, asset_href)

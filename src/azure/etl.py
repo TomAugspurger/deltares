@@ -5,12 +5,13 @@ import logging
 import os
 import tempfile
 import urllib.request
-from typing import Any, Callable
+from typing import Any
 
 import dask.distributed
 import dask_gateway
 import planetary_computer.sas
 import pystac
+import xarray as xr
 
 import azure.storage.blob
 
@@ -44,8 +45,12 @@ def do_one_sansio(
     item: pystac.Item,
     endpoint: str,
     filename: str | None = None,
-) -> tuple[pystac.Item, dict[str, Any]]:
-    refs = make_refs(item, filename=filename)
+    should_make_refs: bool = True,
+) -> tuple[pystac.Item, dict[str, Any] | None]:
+    if should_make_refs:
+        refs = make_refs(item, filename=filename)
+    else:
+        refs = None
     refs_name = get_references_blob_name(item)
     item = item.clone()
     item.add_asset(
@@ -67,7 +72,8 @@ def do_one(
     stac_container_client_options: dict[str, Any],
     kind: str,
     # create_item: Callable[..., pystac.Item],
-    transform_href: Callable[[str], str] | None = None,
+    overwrite_references: bool = False,
+    overwrite_item: bool = True,
 ) -> None:
     if kind == "floods":
         from stactools.deltares import stac
@@ -79,18 +85,23 @@ def do_one(
 
     with tempfile.NamedTemporaryFile() as tf:
         filename = tf.name
-
-        item = stac.create_item(
-            asset_href, filename=filename, transform_href=transform_href
-        )
+        urllib.request.urlretrieve(asset_href, filename=filename)
+        ds = xr.open_dataset(filename, engine="h5netcdf")
+        item = stac.create_item_from_dataset(ds, asset_href=asset_href)
 
         refs_name = stac_name = get_references_blob_name(item)
 
         with refs_cc.get_blob_client(refs_name) as bc:
-            if not bc.exists():
-                item, refs = do_one_sansio(
-                    item, refs_cc.primary_endpoint, filename=filename
-                )
+            should_make_refs = overwrite_references or not bc.exists()
+            item, refs = do_one_sansio(
+                item,
+                refs_cc.primary_endpoint,
+                filename=filename,
+                should_make_refs=should_make_refs,
+            )
+            if should_make_refs:
+                assert refs is not None
+            if should_make_refs:
                 bc.upload_blob(
                     json.dumps(refs).encode(),
                     overwrite=True,
@@ -102,13 +113,14 @@ def do_one(
         assert bc.exists()
 
     with stac_cc.get_blob_client(stac_name) as bc:
-        bc.upload_blob(
-            json.dumps(item.to_dict()).encode(),
-            overwrite=True,
-            content_settings=azure.storage.blob.ContentSettings(
-                content_type=str(pystac.MediaType.GEOJSON)
-            ),
-        )
+        if overwrite_item or not bc.exists():
+            bc.upload_blob(
+                json.dumps(item.to_dict()).encode(),
+                overwrite=True,
+                content_settings=azure.storage.blob.ContentSettings(
+                    content_type=str(pystac.MediaType.GEOJSON)
+                ),
+            )
 
 
 def main(kind: str) -> None:
@@ -169,7 +181,7 @@ def main(kind: str) -> None:
     client.register_worker_plugin(plugin)
     client.upload_file("/code/etl.py")
 
-    cluster.adapt(minimum=5, maximum=40)
+    cluster.adapt(minimum=2, maximum=40)
 
     futures_to_urls = {
         client.submit(

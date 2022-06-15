@@ -2,9 +2,17 @@ version: "3.9"
 services:
   make-references:
     image: mcr.microsoft.com/planetary-computer/python:2022.05.11.0
-    # TODO: CLI - cache_list_files
-    command: python /code/etl.py
+    working_dir: /home/jovyan/deltares 
+    command: python /home/jovyan/deltares/etl.py
     volumes:
-      - .:/code
+      - .:/home/jovyan/deltares
+    env_file:
+      - .env
+  console:
+    image: mcr.microsoft.com/planetary-computer/python:2022.05.11.0
+    command: /bin/bash
+    working_dir: /home/jovyan/deltares 
+    volumes:
+      - .:/home/jovyan/deltares
     env_file:
       - .env
