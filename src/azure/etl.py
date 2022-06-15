@@ -5,7 +5,7 @@ import logging
 import os
 import tempfile
 import urllib.request
-from typing import Any
+from typing import Any, Callable
 
 import dask.distributed
 import dask_gateway
@@ -72,20 +72,28 @@ def do_one(
     stac_container_client_options: dict[str, Any],
     kind: str,
     # create_item: Callable[..., pystac.Item],
+    transform_href: Callable[[str], str] | None = None,
     overwrite_references: bool = False,
     overwrite_item: bool = True,
-) -> None:
+) -> pystac.Item:
     if kind == "floods":
         from stactools.deltares import stac
     else:
         from stactools.deltares.availability import stac  # type: ignore
+
+    if transform_href is None:
+
+        def transform_href(x: str) -> str:
+            return x
+
+    assert callable(transform_href)
 
     refs_cc = azure.storage.blob.ContainerClient(**references_container_client_options)
     stac_cc = azure.storage.blob.ContainerClient(**stac_container_client_options)
 
     with tempfile.NamedTemporaryFile() as tf:
         filename = tf.name
-        urllib.request.urlretrieve(asset_href, filename=filename)
+        urllib.request.urlretrieve(transform_href(asset_href), filename=filename)
         ds = xr.open_dataset(filename, engine="h5netcdf")
         item = stac.create_item_from_dataset(ds, asset_href=asset_href)
 
@@ -121,6 +129,7 @@ def do_one(
                     content_type=str(pystac.MediaType.GEOJSON)
                 ),
             )
+    return item
 
 
 def main(kind: str) -> None:
