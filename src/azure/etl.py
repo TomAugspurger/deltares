@@ -151,6 +151,7 @@ def main(kind: str) -> None:
             container_name="floods-stac",
             credential=os.environ["ETL_FLOODS_STAC_CREDENTIAL"],
         )
+        transform_href = None
 
     else:
         account_url = "https://deltaresreservoirssa.blob.core.windows.net"
@@ -172,6 +173,7 @@ def main(kind: str) -> None:
             container_name="reservoirs-stac",
             credential=os.environ["ETL_RESERVOIRS_STAC_CREDENTIAL"],
         )
+        transform_href = planetary_computer.sign
 
     blobs = list(cc.list_blobs(name_starts_with=name_starts_with))
     urls = [
@@ -188,7 +190,7 @@ def main(kind: str) -> None:
         ["kerchunk", "git+https://github.com/TomAugspurger/deltares"]
     )
     client.register_worker_plugin(plugin)
-    client.upload_file("/code/etl.py")
+    client.upload_file("etl.py")
 
     cluster.adapt(minimum=2, maximum=40)
 
@@ -199,7 +201,7 @@ def main(kind: str) -> None:
             references_container_client_options=references_container_client_options,
             stac_container_client_options=stac_container_client_options,
             kind=kind,
-            transform_href=planetary_computer.sign,
+            transform_href=transform_href,
         ): url
         for url in urls
     }

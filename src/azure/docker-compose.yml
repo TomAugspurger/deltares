@@ -1,9 +1,17 @@
 version: "3.9"
 services:
-  make-references:
+  do-floods:
     image: mcr.microsoft.com/planetary-computer/python:2022.05.11.0
     working_dir: /home/jovyan/deltares 
-    command: python /home/jovyan/deltares/etl.py
+    command: python /home/jovyan/deltares/etl.py floods
+    volumes:
+      - .:/home/jovyan/deltares
+    env_file:
+      - .env
+  do-availability:
+    image: mcr.microsoft.com/planetary-computer/python:2022.05.11.0
+    working_dir: /home/jovyan/deltares
+    command: python /home/jovyan/deltares/etl.py availability
     volumes:
       - .:/home/jovyan/deltares
     env_file:
