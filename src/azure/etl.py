@@ -103,7 +103,7 @@ def do_one(
             should_make_refs = overwrite_references or not bc.exists()
             item, refs = do_one_sansio(
                 item,
-                refs_cc.primary_endpoint,
+                refs_cc.primary_endpoint.split("?")[0],
                 filename=filename,
                 should_make_refs=should_make_refs,
             )
