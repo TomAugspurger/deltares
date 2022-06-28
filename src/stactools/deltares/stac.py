@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+import textwrap
 import urllib.request
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -32,7 +33,9 @@ from . import constants
 logger = logging.getLogger(__name__)
 
 
-def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
+def create_collection(
+    description: str | None = None, extra_fields: dict[str, Any] | None = None
+) -> Collection:
     """Create a STAC Collection
 
     This function includes logic to extract all relevant metadata from
@@ -67,10 +70,19 @@ def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
     extra_fields["cube:variables"] = constants.FLOOD_CUBE_VARIABLES
     extra_fields["cube:dimensions"] = constants.FLOOD_CUBE_DIMENSIONS
 
+    if description is None:
+        description = textwrap.dedent(
+            """\
+            Global estimates of coastal inundation under various sea level rise conditions
+            and return periods at 90m, 1km, and 5km resolutions. Also includes estimated
+            coastal inundation caused by named historical storm events going
+            back several decades."""
+        )
+
     collection = Collection(
         id="deltares-floods",
         title="Deltares Global Flood Maps",
-        description="Global estimates of coastal inundation under various sea level rise conditions and return periods at 90m, 1km, and 5km resolutions. Also includes estimated coastal inundation caused by named historical storm events going back several decades.",  # noqa: E501
+        description=description,
         license="CDLA-Permissive-1.0",
         providers=providers,
         extent=extent,
@@ -80,6 +92,13 @@ def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
             "https://stac-extensions.github.io/datacube/v2.0.0/schema.json"
         ],
     )
+    collection.keywords = [
+        "Deltares",
+        "Flood",
+        "Sea level rise",
+        "Water",
+        "Global",
+    ]
 
     links = [
         Link(

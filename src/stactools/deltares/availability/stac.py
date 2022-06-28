@@ -41,7 +41,9 @@ NUMBER_OF_BASINS = {
 }
 
 
-def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
+def create_collection(
+    description: str | None = None, extra_fields: dict[str, Any] | None = None
+) -> Collection:
     """Create a STAC Collection
 
     This function includes logic to extract all relevant metadata from
@@ -76,10 +78,13 @@ def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
     extra_fields["cube:variables"] = constants.AVAILABILITY_CUBE_VARIABLES
     extra_fields["cube:dimensions"] = constants.AVAILABILITY_CUBE_DIMENSIONS
 
+    if description is None:
+        description = "Daily reservoir variations for 3,236 locations across the globe for the period 1970-2020."  # noqa: E501
+
     collection = Collection(
         id="deltares-water-availability",
         title="Deltares Global Water Availability",
-        description="Daily reservoir variations for 3,236 locations across the globe for the period 1970-2020.",  # noqa: E501
+        description=description,
         license="CDLA-Permissive-1.0",
         providers=providers,
         extent=extent,
@@ -89,6 +94,13 @@ def create_collection(extra_fields: dict[str, Any] | None) -> Collection:
             "https://stac-extensions.github.io/datacube/v2.0.0/schema.json"
         ],
     )
+    collection.keywords = [
+        "Deltares",
+        "Water availability",
+        "Reservoir",
+        "Water",
+        "Precipitation",
+    ]
 
     links = [
         Link(

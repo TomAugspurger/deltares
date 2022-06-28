@@ -6,7 +6,7 @@ LICENSE = Link(
     RelType.LICENSE,
     target="https://cdla.dev/permissive-1-0/",  # noqa: E501
     media_type="text/html",
-    title="Community Data License Agreement – Permissive, Version 1.0",
+    title="Community Data License Agreement - Permissive, Version 1.0",
 )
 
 DATA_ASSET_TITLE = "Flood Map"

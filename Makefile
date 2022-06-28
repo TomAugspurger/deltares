@@ -2,8 +2,9 @@ examples/collection.json:
 	stac deltares create-collection $@
 
 
-examples/pc-collection.json:
+examples/pc-floods-collection.json:
 	stac deltares create-collection $@ \
+		--description "{{ collection.description }}" \
 		--extra-field "msft:storage_account=deltaresfloodssa" \
 		--extra-field "msft:container=floods" \
 		--extra-field "msft:short_description=Global estimates of coastal inundation under various sea level rise conditions and return periods."
@@ -20,7 +21,8 @@ examples/availability-collection.json:
 
 examples/pc-availability-collection.json:
 	stac deltares-availability create-collection $@ \
+		--description "{{ collection.description }}" \
 		--extra-field "msft:storage_account=deltaresreservoirssa" \
 		--extra-field "msft:container=reservoirs" \
-		--extra-field "msft:short_description=Global estimates of coastal inundation under various sea level rise conditions and return periods."
+		--extra-field "msft:short_description=Historical daily reservoir variations."
 

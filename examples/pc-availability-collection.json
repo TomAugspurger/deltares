@@ -2,7 +2,7 @@
   "type": "Collection",
   "id": "deltares-water-availability",
   "stac_version": "1.0.0",
-  "description": "Daily reservoir variations for 3,236 locations across the globe for the period 1970-2020.",
+  "description": "{{ collection.description }}",
   "links": [
     {
       "rel": "license",
@@ -14,13 +14,16 @@
       "rel": "license",
       "href": "https://cdla.dev/permissive-1-0/",
       "type": "text/html",
-      "title": "Community Data License Agreement \u2013 Permissive, Version 1.0"
+      "title": "Community Data License Agreement - Permissive, Version 1.0"
     }
   ],
   "stac_extensions": [
     "https://stac-extensions.github.io/datacube/v2.0.0/schema.json",
     "https://stac-extensions.github.io/item-assets/v1.0.0/schema.json"
   ],
+  "msft:storage_account": "deltaresreservoirssa",
+  "msft:container": "reservoirs",
+  "msft:short_description": "Historical daily reservoir variations.",
   "cube:variables": {
     "latitude": {
       "type": "data",
@@ -276,6 +279,13 @@
     }
   },
   "license": "CDLA-Permissive-1.0",
+  "keywords": [
+    "Deltares",
+    "Water availability",
+    "Reservoir",
+    "Water",
+    "Precipitation"
+  ],
   "providers": [
     {
       "name": "Deltares",
