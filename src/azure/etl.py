@@ -54,7 +54,7 @@ def do_one_sansio(
     refs_name = get_references_blob_name(item)
     item = item.clone()
     item.add_asset(
-        "references",
+        "index",
         pystac.Asset(
             f"{endpoint}/{refs_name}",
             title="Index file",

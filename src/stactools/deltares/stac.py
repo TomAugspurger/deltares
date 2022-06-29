@@ -126,7 +126,13 @@ def create_collection(
             "title": constants.DATA_ASSET_TITLE,
             "description": constants.DATA_ASSET_DESCRIPTION,
             "roles": constants.DATA_ASSET_ROLES,
-        }
+        },
+        "index": {
+            "type": MediaType.JSON,
+            "title": constants.INDEX_ASSET_TITLE,
+            "description": constants.INDEX_ASSET_DESCRIPTION,
+            "roles": constants.INDEX_ASSET_ROLES,
+        },
     }
 
     collection.add_asset(

@@ -16,6 +16,10 @@ DATA_ASSET_DESCRIPTION = (
 )
 DATA_ASSET_ROLES = ["data"]
 
+INDEX_ASSET_TITLE = "Index file"
+INDEX_ASSET_DESCRIPTION = "Kerchunk index file."
+INDEX_ASSET_ROLES = ["index"]
+
 FLOOD_CUBE_DIMENSIONS = {
     "time": {
         "extent": ["2010-01-01T00:00:00Z", "2010-01-01T00:00:00Z"],

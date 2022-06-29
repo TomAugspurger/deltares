@@ -11,8 +11,8 @@ def test_etl_single() -> None:
     item2, refs = etl.do_one_sansio(item, endpoint=endpoint)
 
     assert (
-        item2.assets["references"].href
+        item2.assets["index"].href
         == "https://deltaresfloodssa.blob.core.windows.net/references/floods/LIDAR-5km-2018-0000.json"  # noqa: E501
     )
-    assert item2.assets["references"].roles == ["index"]
+    assert item2.assets["index"].roles == ["index"]
     assert isinstance(refs, dict)

@@ -159,6 +159,14 @@
       "roles": [
         "data"
       ]
+    },
+    "index": {
+      "type": "application/json",
+      "title": "Index file",
+      "description": "Kerchunk index file.",
+      "roles": [
+        "index"
+      ]
     }
   },
   "title": "Deltares Global Flood Maps",
