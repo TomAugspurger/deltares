@@ -5,7 +5,7 @@ import re
 import textwrap
 import urllib.request
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 import shapely.geometry
@@ -59,11 +59,20 @@ def create_collection(
         ),
     ]
 
-    date_intervals: list[datetime | None] = [None, None]
+    date_intervals: list[list[datetime | None]] = [
+        [
+            datetime(2018, 1, 1, tzinfo=timezone.utc),
+            datetime(2018, 12, 31, tzinfo=timezone.utc),
+        ],
+        [
+            datetime(2050, 1, 1, tzinfo=timezone.utc),
+            datetime(2050, 12, 31, tzinfo=timezone.utc),
+        ],
+    ]
 
     extent = Extent(
         SpatialExtent([[-180.0, 90.0, 180.0, -90.0]]),
-        TemporalExtent([date_intervals]),
+        TemporalExtent(date_intervals),
     )
     extra_fields = extra_fields or {}
     extra_fields["cube:variables"] = constants.FLOOD_CUBE_VARIABLES
