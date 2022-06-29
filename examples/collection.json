@@ -2,7 +2,7 @@
   "type": "Collection",
   "id": "deltares-floods",
   "stac_version": "1.0.0",
-  "description": "Global estimates of coastal inundation under various sea level rise conditions and return periods at 90m, 1km, and 5km resolutions. Also includes estimated coastal inundation caused by named historical storm events going back several decades.",
+  "description": "Global estimates of coastal inundation under various sea level rise conditions\nand return periods at 90m, 1km, and 5km resolutions. Also includes estimated\ncoastal inundation caused by named historical storm events going\nback several decades.",
   "links": [
     {
       "rel": "license",
@@ -14,7 +14,7 @@
       "rel": "license",
       "href": "https://cdla.dev/permissive-1-0/",
       "type": "text/html",
-      "title": "Community Data License Agreement \u2013 Permissive, Version 1.0"
+      "title": "Community Data License Agreement - Permissive, Version 1.0"
     }
   ],
   "stac_extensions": [
@@ -180,6 +180,13 @@
     }
   },
   "license": "CDLA-Permissive-1.0",
+  "keywords": [
+    "Deltares",
+    "Flood",
+    "Sea level rise",
+    "Water",
+    "Global"
+  ],
   "providers": [
     {
       "name": "Deltares",
@@ -212,14 +219,14 @@
       2050
     ],
     "deltares:return_period": [
-      "0000",
-      "0002",
-      "0005",
-      "0010",
-      "0025",
-      "0050",
-      "0100",
-      "0250"
+      0,
+      2,
+      5,
+      10,
+      25,
+      50,
+      100,
+      250
     ]
   },
   "assets": {
