@@ -4,7 +4,7 @@ import logging
 import re
 import urllib.request
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 import shapely.geometry
@@ -68,7 +68,10 @@ def create_collection(
         ),
     ]
 
-    date_intervals: list[datetime | None] = [None, None]
+    date_intervals: list[datetime | None] = [
+        datetime(1970, 1, 1, tzinfo=timezone.utc),
+        datetime(2020, 12, 31, tzinfo=timezone.utc),
+    ]
 
     extent = Extent(
         SpatialExtent([[-180.0, 90.0, 180.0, -90.0]]),
