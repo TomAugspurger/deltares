@@ -9,4 +9,4 @@ def test_create_item() -> None:
     assert result.properties["deltares:dem_name"] == "LIDAR"
     assert result.properties["deltares:resolution"] == "5km"
     assert result.properties["deltares:sea_level_year"] == 2018
-    assert result.properties["deltares:return_period"] == "0000"
+    assert result.properties["deltares:return_period"] == 0

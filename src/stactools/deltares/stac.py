@@ -115,16 +115,7 @@ def create_collection(
         "deltares:dem_name": ["NASADEM", "MERITDEM", "LIDAR"],
         "deltares:resolution": ["90m", "1km", "5km"],
         "deltares:sea_level_year": [2018, 2050],
-        "deltares:return_period": [
-            "0000",
-            "0002",
-            "0005",
-            "0010",
-            "0025",
-            "0050",
-            "0100",
-            "0250",
-        ],
+        "deltares:return_period": [0, 2, 5, 10, 25, 50, 100, 250],
     }
 
     collection.summaries = Summaries(SUMMARIES, maxcount=50)
@@ -159,7 +150,7 @@ class PathParts:
     dem_name: str
     resolution: str
     sea_level_year: int
-    return_period: str
+    return_period: int
 
     XPR = re.compile(
         r"https://deltaresfloodssa.blob.core.windows.net/floods/v2021.06/[^/]+/[^/]+[^/]+/[^/]+/GFM_global_"  # noqa: E501
@@ -176,6 +167,7 @@ class PathParts:
             raise ValueError(f"URL {url} does not match the regular expression.")
         d: dict[str, Any] = match.groupdict()
         d["sea_level_year"] = int(d["sea_level_year"])
+        d["return_period"] = int(d["return_period"])
         return cls(**d)
 
     @property
@@ -185,7 +177,7 @@ class PathParts:
                 self.dem_name,
                 self.resolution,
                 str(self.sea_level_year),
-                self.return_period,
+                f"{self.return_period:04d}",
             ]
         )
 
