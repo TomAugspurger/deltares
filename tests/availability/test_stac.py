@@ -9,5 +9,4 @@ def test_availability() -> None:
     result = stac.create_item(asset_href, transform_href=planetary_computer.sign)
     assert result.id == "BOM"
     assert result.bbox
-    breakpoint()
     result.validate()
