@@ -20,7 +20,6 @@ from pystac import (
     MediaType,
     Provider,
     ProviderRole,
-    RelType,
     SpatialExtent,
     Summaries,
     TemporalExtent,
@@ -107,7 +106,7 @@ def create_collection(
 
     links = [
         Link(
-            RelType.LICENSE,
+            "documentation",
             "https://ai4edatasetspublicassets.blob.core.windows.net/assets/aod_docs/pc-deltares-water-availability-documentation.pdf",  # noqa: E501
             media_type="application/pdf",
             title="User Guide",

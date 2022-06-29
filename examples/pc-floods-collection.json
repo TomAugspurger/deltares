@@ -5,7 +5,7 @@
   "description": "{{ collection.description }}",
   "links": [
     {
-      "rel": "license",
+      "rel": "documentation",
       "href": "https://ai4edatasetspublicassets.blob.core.windows.net/assets/aod_docs/11206409-003-ZWS-0003_v0.1-Planetary-Computer-Deltares-global-flood-docs.pdf",
       "type": "application/pdf",
       "title": "User Guide"

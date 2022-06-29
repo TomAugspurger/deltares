@@ -21,7 +21,6 @@ from pystac import (
     MediaType,
     Provider,
     ProviderRole,
-    RelType,
     SpatialExtent,
     Summaries,
     TemporalExtent,
@@ -102,7 +101,7 @@ def create_collection(
 
     links = [
         Link(
-            RelType.LICENSE,
+            "documentation",
             "https://ai4edatasetspublicassets.blob.core.windows.net/assets/aod_docs/11206409-003-ZWS-0003_v0.1-Planetary-Computer-Deltares-global-flood-docs.pdf",  # noqa: E501
             media_type="application/pdf",
             title="User Guide",

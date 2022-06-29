@@ -5,7 +5,7 @@
   "description": "{{ collection.description }}",
   "links": [
     {
-      "rel": "license",
+      "rel": "documentation",
       "href": "https://ai4edatasetspublicassets.blob.core.windows.net/assets/aod_docs/pc-deltares-water-availability-documentation.pdf",
       "type": "application/pdf",
       "title": "User Guide"
